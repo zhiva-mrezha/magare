@@ -1,7 +1,11 @@
 admin: '{{ vault_admin }}'
+admin_password: '{{ vault_admin_password }}'
 ansible_user: '{{ admin }}'
 certbot_webroot: /var/www/certbot
 admin_email: "akodzhabashev@gmail.com"
+az_domain: az.otselo.eu
+mandala_domain: mandalasinergia.eu
 domains:
-  - az.otselo.eu
-  - mandalasinergia.eu
+  - '{{ az_domain }}'
+  - '{{ mandala_domain}}'
+mandala_root: /opt/mandala-sinergia

@@ -1,3 +1,25 @@
+- hosts: certificate
+  roles:
+    - role: geerlingguy.certbot
+      become: yes
+      vars:
+        certbot_auto_renew_user: root
+        certbot_auto_renew_hour: "5"
+        certbot_auto_renew_minute: "20"
+        certbot_create_if_missing: yes
+        certbot_create_method: standalone
+        certbot_admin_email: '{{ admin_email }}'
+        certbot_certs: 
+          - domains: '{{ domains }}'
+        certbot_create_standalone_stop_services:
+          - nginx
+  tasks:
+    - name: create certbot webroot
+      become: yes
+      file:
+        name: '{{ certbot_webroot }}'
+  tags: certificate
+
 - hosts: all
   roles:
     - role: magare
@@ -36,13 +58,13 @@
             state: "present"
 
           - listen: "443 ssl"
-            server_name: "{{ mandala_domain }}"
+            server_name: "{{ mandala_domain }} www.{{ mandala_domain }}"
 
             state: "present"
-            filename: "horodeya.org.conf"
+            filename: "{{ mandala_domain }}.org.conf"
             extra_parameters: |
               location /static {
-                alias {{root}}/static;
+                alias {{mandala_root}}/static;
               }
 
               location / {
@@ -61,24 +83,3 @@
             filename: "{{ mandala_domain }}.80.conf"
             state: "present"
       tags: nginx
-
-- hosts: certificate
-  roles:
-    - role: geerlingguy.certbot
-      become: yes
-      vars:
-        certbot_auto_renew_user: root
-        certbot_auto_renew_hour: "5"
-        certbot_auto_renew_minute: "20"
-        certbot_create_if_missing: yes
-        certbot_create_method: standalone
-        certbot_admin_email: '{{ admin_email }}'
-        certbot_certs: 
-          - domains: '{{ domains }}'
-        certbot_create_standalone_stop_services:
-          - nginx
-  tasks:
-    - name: create certbot webroot
-      become: yes
-      file:
-        name: '{{ certbot_webroot }}'
