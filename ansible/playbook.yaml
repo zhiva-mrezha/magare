@@ -1,0 +1,84 @@
+- hosts: all
+  roles:
+    - role: magare
+      tags: magare
+
+    - role: geerlingguy.nginx
+      become: yes
+      vars:
+        nginx_remove_default_vhost: true
+        nginx_vhosts:
+          - listen: "443 ssl"
+            server_name: "{{ az_domain }}"
+            state: "present"
+            filename: "keycloak.conf"
+            extra_parameters: |
+              location '/.well-known/acme-challenge' {
+                root        '{{ certbot_webroot }}';
+              }
+              location / {
+                proxy_set_header X-Forwarded-Host $host;
+                proxy_set_header X-Forwarded-Server $host;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto https;
+                proxy_pass http://127.0.0.1:8080;
+              }
+
+              ssl_certificate     /etc/letsencrypt/live/{{ az_domain }}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/{{ az_domain }}/privkey.pem;
+              ssl_protocols       TLSv1.1 TLSv1.2;
+              ssl_ciphers         HIGH:!aNULL:!MD5;
+
+          - listen: "80"
+            server_name: "{{ az_domain }}"
+            return: "301 https://{{ az_domain }}$request_uri"
+            filename: "keycloak.80.conf"
+            state: "present"
+
+          - listen: "443 ssl"
+            server_name: "{{ mandala_domain }}"
+
+            state: "present"
+            filename: "horodeya.org.conf"
+            extra_parameters: |
+              location /static {
+                alias {{root}}/static;
+              }
+
+              location / {
+                include uwsgi_params;
+                uwsgi_pass 127.0.0.1:8000;
+              }
+
+              ssl_certificate     /etc/letsencrypt/live/{{ mandala_domain }}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/{{ mandala_domain }}/privkey.pem;
+              ssl_protocols       TLSv1.1 TLSv1.2;
+              ssl_ciphers         HIGH:!aNULL:!MD5;
+
+          - listen: "80"
+            server_name: "{{ mandala_domain }}"
+            return: "301 https://{{ mandala_domain }}$request_uri"
+            filename: "{{ mandala_domain }}.80.conf"
+            state: "present"
+      tags: nginx
+
+- hosts: certificate
+  roles:
+    - role: geerlingguy.certbot
+      become: yes
+      vars:
+        certbot_auto_renew_user: root
+        certbot_auto_renew_hour: "5"
+        certbot_auto_renew_minute: "20"
+        certbot_create_if_missing: yes
+        certbot_create_method: standalone
+        certbot_admin_email: '{{ admin_email }}'
+        certbot_certs: 
+          - domains: '{{ domains }}'
+        certbot_create_standalone_stop_services:
+          - nginx
+  tasks:
+    - name: create certbot webroot
+      become: yes
+      file:
+        name: '{{ certbot_webroot }}'

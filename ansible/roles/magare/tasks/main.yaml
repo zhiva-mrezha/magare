@@ -1,0 +1,22 @@
+- name: make admin user so we don't use the root user
+  become: yes
+  user:
+    name: '{{admin}}'
+    shell: /bin/bash
+    groups: [sudo]
+    append: yes
+    password: '{{admin_password}}' # necessary otherwise user is locked and we cannot ssh into it
+    update_password: on_create
+
+- name: make sure admin user is authenticated via key
+  become: yes
+  authorized_key:
+    user: '{{ admin }}'
+    key: '{{ item }}'
+  with_file:
+    - files/id_rsa.pub
+
+- name: setup nftables
+  import_tasks: nftables.yaml
+  become: yes
+  tags: firewall
